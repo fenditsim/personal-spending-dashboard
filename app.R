@@ -12,14 +12,21 @@ library(readr)
 ui <- page_navbar(
   title = "Personal Spending Dashboard",
   sidebar = sidebar(
-    open = "desktop", # Closed in mobile browser only
-    fileInput("file", "Upload CSV File",
-              accept = c(
-                "text/csv",
-                "text/comma-separated-values,text/plain",
-                ".csv"),
-              multiple = FALSE
-    )
+    open = FALSE, # Closed in mobile browser only
+    fileInput(
+      inputId = 'file',
+      label = 'Choose CSV File',
+      accept = c('text/csv',
+                 'text/comma-separated-values,text/plain',
+                 '.csv'),
+      multiple = FALSE
+    ) |>
+      tagAppendAttributes(
+        onInput = "
+                  const id = $(this).find('input[type=\"file\"]').attr('id');
+                  Shiny.setInputValue(id + '_click', Math.random());
+        "
+      ),
   ),
   
   theme = bs_theme(
@@ -28,12 +35,34 @@ ui <- page_navbar(
     base_font = font_google("Inter"),
     navbar_bg = "#45AD82"
   ),
-
+  
   nav_spacer(),
   
-  # Homepage
+  # Info tab
+  nav_panel(title = "Home", 
+            h3("Welcome!"),
+            p("In this personal spending dashboard, you can see how your current month spending has been in various categories."),
+            p("This dashboard also provides you valuable information about your spending, such as:"),
+            tags$ul(
+              tags$li("How does your current month's spending look like?"),
+              tags$li("How does your yearly spending trend look like?"),
+              tags$li("Does your spending pattern in current month differ from that of average of last 12 months'?"),
+              tags$li("For each spending category, how does your current month's improve from average of last 12 months'?"),
+            ),
+            p('Rest assured that your data will not be stored remotely! If you refresh the dashboard, all results are gone and you need to upload the same csv file for results again.'),
+            h3("Remarks"),
+            p("This Shiny app is for illustration purpose only."),
+            p("There is a specific format for uploaded csv file. Category's name is listed on the first column (with a header as 'category'), with spending for each month in the following columns. Each month's spending should have a relevant header. For example, it is '2024.09' if it is spending during Semptember 2024. See the example screenshot below:"),
+            img(src='example.png'),
+            p("Please have spending of the past 12 months and current month."),
+            p('Head over to Dashboard tab, then open the sidebar (with an arrow sign; top left of your screen) and upload your spending dataset! Then see a brief analysis of your spending in Analysis tab!'),
+            br(),
+            p("© 2024", a(href = "https://github.com/fenditsim", "Fendi Tsim")," | Built with Shiny")
+  ),
+  
+  # Dashboard
   nav_panel(
-    title = "Home",
+    title = "Dashboard",
     layout_columns(
       uiOutput(outputId = "current.month.spending"),
       uiOutput(outputId = "average.months.spending"),
@@ -60,32 +89,16 @@ ui <- page_navbar(
             layout_columns(uiOutput(outputId = "same.spending"))
   ),
   
-  # Info tab
-  nav_panel(title = "Info", 
-            h3("About"),
-            p("© 2024", a(href = "https://github.com/fenditsim", "Fendi Tsim")," | Built with Shiny"),
-            br(),
-            h3("Remarks"),
-            p("This Shiny app is for illustration purpose only."),
-            p("There is a specific format for uploaded csv file. Category's name is listed on the first column (with a header as 'category'), with spending for each month in the following columns. Each month's spending should have a relevant header. For example, it is '2024.09' if it is spending during Semptember 2024. See the example screenshot below:"),
-            img(src='example.png'),
-            p("Please have spending of the past 12 months and current month."),
-            p("Note that your data will not be stored remotely! If you refresh the dashboard, all results are gone and you need to upload the same csv file for results again."),
-            p(),
-            h3("Features"),
-            p("User can upload monthly spending with various spending categories."),
-            p("This shiny app aims to address following questions about your monthly spending:"),
-            tags$ul(
-              tags$li("How does your current month's spending look like?"),
-              tags$li("How does your yearly spending trend look like?"),
-              tags$li("Does spending pattern in current month differ from that of average of last 12 months'?"),
-              tags$li("For each spending category, how does your current month improve from average of last 12 months'?"),
-            )
-            ),
-  
   # Log tab
   nav_panel(title = "Log", 
             h3("Version Log"),
+            h4("0.1.4 - 2024.10.14"),
+            tags$div(
+              tags$ul(
+                tags$li("Restructuring the dashboard"),
+                tags$li("Adding the notification message (waiting the data to be uploaded) in Dashboard tab"),
+              )
+            ),
             h4("0.1.3 - 2024.10.10"),
             tags$div(
               tags$ul(
@@ -104,7 +117,7 @@ ui <- page_navbar(
                 tags$li("v0.1"),
               )
             )
-            ),
+  ),
   
   # Github repo link
   nav_item(tags$a(icon("github"), href = "https://github.com/fenditsim/personal-spending-dashboard")) # Link to relevant github repo
@@ -113,10 +126,27 @@ ui <- page_navbar(
 # server
 server <- function(input, output) {
   
-  # Welcome message
-  shinyalert(
-    title = "Welcome!",
-    text = "This personal spending dashboard is for illustration only.\nPlease visit Info (third tab) for more information!\nLast Updated: 2024-10-10"
+  # Notification message (waiting the data to be uploaded)
+  observeEvent(input$file_click,
+               {
+                 shinyalert(
+                   title = "Wait",
+                   text = "Waiting for your data to be uploaded",
+                   size = "xs",
+                   closeOnEsc = TRUE,
+                   closeOnClickOutside = TRUE,
+                   html = TRUE,
+                   type = "info",
+                   showConfirmButton = TRUE,
+                   confirmButtonText = "OK",
+                   confirmButtonCol = "#004192",
+                   showCancelButton = FALSE,
+                   imageUrl = "",
+                   animation = TRUE
+                 )
+               },
+               ignoreNULL = FALSE,
+               ignoreInit = TRUE
   )
   
   # Reactive value to store the uploaded data
@@ -231,8 +261,7 @@ server <- function(input, output) {
     return(card)
   })
   
-  # Bar Chart (Difference)
-  
+  # Bar Chart (Difference in each category)
   difference <- reactive({
     req(data())
     df <- data.frame(data()$category, rowMeans(data()[(ncol(data())-12):(ncol(data())-1)]), data()[,ncol(data())])
