@@ -92,6 +92,12 @@ ui <- page_navbar(
   # Log tab
   nav_panel(title = "Log", 
             h3("Version Log"),
+            h4("0.1.5 - 2024.10.19"),
+            tags$div(
+              tags$ul(
+                tags$li("Updated Analysis session - showing the total amount of overspending or saving up")
+              )
+            ),
             h4("0.1.4 - 2024.10.14"),
             tags$div(
               tags$ul(
@@ -303,11 +309,12 @@ server <- function(input, output) {
     
     value <- c()
     
-    for (i in 1:nrow(df)) value[i] <- paste0("You've overspent £", df$diff[i], " in ", df$category[i], " this month than the average of last 12 months.")
+    for (i in 1:nrow(df)) value[i] <- paste0(" - £", df$diff[i], " in ", df$category[i])
     
     bslib::value_box(
       title = "",
       value = "Categories that you've been overspending",
+      paste0("In total you have overspent £", sum(df$diff) , " this month than the average of last 12 months. See which categories you've overspent below:"),
       lapply(value, function(x) p(x)),
       theme = "red"
     )
@@ -323,11 +330,12 @@ server <- function(input, output) {
     
     value <- c()
     
-    for (i in 1:nrow(df)) value[i] <- paste0("You've saved up £", abs(df$diff[i]), " in ", df$category[i], " this month than the average of last 12 months.")
+    for (i in 1:nrow(df)) value[i] <- paste0(" - £", abs(df$diff[i]), " in ", df$category[i])
     
     bslib::value_box(
       title = "",
       value = "Categories that you've been saving up",
+      paste0("In total you have saved up £", sum(abs(df$diff)) , " this month than the average of last 12 months. See which categories you've saved up below:"),
       lapply(value, function(x) p(x)),
       theme = "green"
     )
